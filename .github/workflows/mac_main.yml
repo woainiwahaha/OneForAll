@@ -3,45 +3,41 @@ name: Build OneForAll macOS Binary
 on:
   push:
     branches: [ master ]
-  workflow_dispatch:  # 支持手动点击编译
+  workflow_dispatch:
 
 jobs:
   build-macos-binary:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Setup Python 3.9
         uses: actions/setup-python@v5
         with:
           python-version: "3.9"
 
-      # 安装编译工具
       - name: Install dependencies
         run: |
-          brew install make gcc
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller  # 打包二进制工具
+          pip install pyinstaller
 
-      # 编译 macOS 版 massdns
-      - name: Compile massdns
+      # 👇 修复：自动下载编译好的 macOS massdns，不再执行make
+      - name: Download pre-built massdns for macOS
         run: |
-          cd thirdparty/massdns
-          make
-          cd ../../
+          mkdir -p thirdparty/massdns/bin
+          cd thirdparty/massdns/bin
+          curl -L -o massdns https://github.com/blechschmidt/massdns/releases/download/v1.0.0/massdns-darwin
+          chmod +x massdns
+          cd ../../../
 
-      # 打包成独立二进制文件
-      - name: Build OneForAll Binary
+      - name: Build Binary
         run: |
           pyinstaller --onefile --clean \
             --add-binary "thirdparty/massdns/bin/massdns:thirdparty/massdns/bin/" \
             --name oneforall \
             oneforall.py
 
-      # 上传最终二进制文件
       - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
